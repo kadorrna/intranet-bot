@@ -7,8 +7,6 @@ dotenv.config({
 dotenv.load();
 
 var WebSocket = require('ws'),
-
-    //authUrl = "https://slack.com/api/rtm.start?token=" + process.env.API_TOKEN,
     robotUrl = "https://slack.com/api/rtm.start?token=" + process.env.ROBOT_TOKEN,
     request = require("request"),
     rp = require('request-promise'),
