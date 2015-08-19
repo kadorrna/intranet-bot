@@ -20,3 +20,8 @@ Devuelve el valor del dolar.
 ## Cuanto corresponde en pesos este mes.
 
 <code>``cuantos pesos?``</code>
+
+## Valores env
+En el directorio raiz hay que poner un .env con los valores (sin espacios)
+* ROBOT_TOKEN=elTokenDelRobot
+* INTRANET=laURLDeIntranet
