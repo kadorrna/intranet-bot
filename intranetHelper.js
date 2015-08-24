@@ -2,7 +2,7 @@
 var rp = require('request-promise');
 
 function fetchUserProfile(userMail) {
-  return rp(process.env.INTRANET+'/user/me?access_token='+process.env.ROBOT_TOKEN+'&user='+userMail);
+  return rp(process.env.INTRANET+'/user/me?access_token='+process.env.BOT_TOKEN+'&user='+userMail);
 }
 
 
@@ -11,8 +11,7 @@ function fecthChange() {
 }
 
 function rqPayment(email,pesos,dolares) {
-  console.log('\n urlPayment='+process.env.INTRANET+'slack_payment?access_token='+process.env.ROBOT_TOKEN+'&user='+email+'&dollars='+dolares+'&deposit='+pesos);
-  return rp(process.env.INTRANET+'/slack_payment?access_token='+process.env.ROBOT_TOKEN+'&user='+email+'&dollars='+dolares+'&deposit='+pesos);
+  return rp(process.env.INTRANET+'/slack_payment?access_token='+process.env.BOT_TOKEN+'&user='+email+'&dollars='+dolares+'&deposit='+pesos);
 }
 
 
@@ -35,11 +34,6 @@ exports.getChange = function(){
         throw new Error ('No se pudo obtener cambio');
       }
       else {
-        console.log('\n');
-        console.log('\n');
-        console.log('\n');
-        console.log('getChange');
-        console.log(json.buy);
         return json.buy;
       }
   });

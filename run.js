@@ -7,7 +7,7 @@ dotenv.config({
 dotenv.load();
 
 var WebSocket = require('ws'),
-    robotUrl = "https://slack.com/api/rtm.start?token=" + process.env.ROBOT_TOKEN,
+    robotUrl = "https://slack.com/api/rtm.start?token=" + process.env.BOT_TOKEN,
     request = require("request"),
     rp = require('request-promise'),
     slack = require('./slackHelper'),
@@ -15,17 +15,6 @@ var WebSocket = require('ws'),
     errorSlackMsg = 'Hubo un error',
     _ = require('lodash');
 
-
-/*
-request(robotUrl, function(err, response, body) {
-  if (!err && response.statusCode === 200) {
-    var res = JSON.parse(body);
-    if (res.ok) {
-      connectWebSocketDollar(res.url);
-    }
-  }
-});
-*/
 
 request(robotUrl, function(err, response, body) {
   if (!err && response.statusCode === 200) {
@@ -68,8 +57,7 @@ function responseToValorDolar(userID, ws, message){
 
   return intra.getChange().then(function(change) {
     if (change){
-      console.log('Entro aca='+change);
-      ws.send(JSON.stringify({ channel: message.channel, id: 2, text:change, type: "message" }));
+      ws.send(JSON.stringify({ channel: message.channel, id: 2, text:''+change, type: "message" }));
     } else {
       errorSlackMsg = "Algo mal";
       throw new Error('Imposible traer el valor del dolar');
@@ -194,47 +182,13 @@ function connectWebSocketIntranet(url) {
         }
 
         if (!response){
+            errorSlackMsg = "Mensaje no valido";
             errorResponse("Mensaje no valido", ws, message.channel);
         }else{
           response.catch(function(error){
-              console.log('\n\nENTRO AL CATCH');
               errorResponse(error, ws, message.channel);
           });
         }
       }
   });
 }
-
-/*
-function connectWebSocketDollar(url) {
-
-  var ws = new WebSocket(url);
-
-  ws.on('open', function() {
-      console.log('Connected');
-  });
-
-  ws.on('message', function(message) {
-    message = JSON.parse(message);
-      var msgStr = message.text;
-      var valorDolar =_.startsWith(msgStr, "valorDolar");
-
-       if (valorDolar) {
-         console.log('received:', message);
-         ws.send(JSON.stringify({ channel: 'D082X5UHF', id: 1, text:'PUTO', type: "message" }));
-
-        intra.getChange().then(function(dollarChange) {
-          console.log('DOLLAR CHANGE = '+dollarChange);
-          console.log('Message:'+JSON.stringify(message));
-          //ws.send(JSON.stringify({ channel: message.channel, id: 1, text:dollarChange, type: "message" }));
-          response = responseToValorDolar(userID, ws, message, dollarChange);
-
-      }).catch(function() {
-          console.log("error trayendo dolar");
-      });
-
-
-      }
-  });
-}
-*/
