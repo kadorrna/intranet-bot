@@ -1,10 +1,13 @@
 'use strict';
 
+
 var dotenv = require('dotenv');
 dotenv.config({
   silent: true
 });
 dotenv.load();
+
+
 
 var WebSocket = require('ws'),
     robotUrl = "https://slack.com/api/rtm.start?token=" + process.env.BOT_TOKEN,
@@ -13,8 +16,25 @@ var WebSocket = require('ws'),
     slack = require('./slackHelper'),
     intra = require('./intranetHelper'),
     errorSlackMsg = 'Hubo un error',
+    commands = require("./commands.js"),
+    fn = require("./functions.js"),
     _ = require('lodash');
 
+
+var activeCommands = 0;
+var resetWhenIdle = false;
+
+
+
+commands.help.configure("uso command:[param1]+[param2]+...", function (commandName, description, params, command) {
+        var note = "";
+        if (command.private) {
+            note = " (solo mensaje privado)";
+        }
+        return "`" + commandName + "`: " + description + note + "\n" + params + "\n";
+    }, function (paramName, description) {
+        return "        `" + paramName + "` " + description + "\n";
+});
 
 request(robotUrl, function(err, response, body) {
   if (!err && response.statusCode === 200) {
@@ -24,124 +44,6 @@ request(robotUrl, function(err, response, body) {
     }
   }
 });
-
-function errorResponse(error, ws,messageChannel){
-  console.log('\n'+error+'\n');
-  ws.send(JSON.stringify({ channel: messageChannel, id: 1, text:errorSlackMsg, type: "message" }));
-  errorSlackMsg = 'Hubo un error';
-}
-
-function convertToPesos(dollars){
-  return intra.getChange().then(function(change){
-      return (change * dollars);
-  });
-}
-
-function responseToMail(userID, ws, message){
-  return slack.getUserMail(userID).then(function(email) {
-    ws.send(JSON.stringify({ channel: message.channel, id: 1, text:'tu emilio es='+email, type: "message" }));
-  });
-}
-
-function getLevel(userID) {
-  return slack.getUserMail(userID).then(intra.getLevel);
-}
-
-function responseToLevel(userID, ws, message){
-  return getLevel(userID).then(function(level){
-    ws.send(JSON.stringify({ channel: message.channel, id: 1, text:'Estas en '+level+' dolares', type: "message" }));
-  });
-}
-
-function responseToValorDolar(userID, ws, message){
-
-  return intra.getChange().then(function(change) {
-    if (change){
-      ws.send(JSON.stringify({ channel: message.channel, id: 2, text:''+change, type: "message" }));
-    } else {
-      errorSlackMsg = "Algo mal";
-      throw new Error('Imposible traer el valor del dolar');
-    }
-  });
-}
-
-
-function getLevelPesos(userID){
-  return slack.getUserMail(userID)
-        .then(intra.getLevel)
-        .then(convertToPesos);
-}
-
-function responseToLevelPesos(userID, ws, message){
-  return getLevelPesos(userID).then(function(dollarsPesosValue){
-          ws.send(JSON.stringify({ channel: message.channel, id: 1, text:'Estas en '+dollarsPesosValue+' pesos', type: "message" }));
-        });
-}
-
-function paymentIsPossible(userID, dollars, pesos){
-  return getLevelPesos(userID).then(function(levelInPesos){
-     return intra.getChange().then(function(change){
-       var asked = parseInt(dollars * change) + parseInt(pesos);
-       if (parseInt(levelInPesos) < parseInt(asked)) {
-         return false;
-       } else {
-         return true;
-       }
-     });
-  });
-
-}
-
-function responseToPayment(userID,ws,message){
-  var msg = message.text.toLowerCase();
-  return slack.getUserMail(userID)
-          .then(function(email){
-            var setPayment = true;
-            var pesos = msg.split("depositar:");
-            if (!pesos[1]){
-              setPayment = false;
-              ws.send(JSON.stringify({ channel: message.channel, id: 1, text:'El formato deberia ser: "Quiero depositar:x dolares:y"', type: "message" }));
-              throw new Error('No seteo pesos');
-            } else {
-              pesos = pesos[1].split(" ");
-              pesos = pesos[0];
-            }
-
-            var dollars = msg.split("dolares:");
-            if (!dollars[1]){
-              setPayment = false;
-              errorSlackMsg = 'El formato deberia ser: "Quiero pesos:x dolares:y"';
-              throw new Error('No seteo dolares');
-            } else {
-              dollars = dollars[1].split(" ");
-              dollars = dollars[0];
-            }
-
-            return paymentIsPossible(userID, dollars, pesos).then(function(isPossible){
-              if (isPossible){
-                intra.payment(email,pesos,dollars).then(function(){
-                  ws.send(JSON.stringify({ channel: message.channel, id: 1, text:'El pago fue seteado correctamente', type: "message" }));
-                });
-              } else {
-                errorSlackMsg = "El monto ingresado supera su nivel";
-                throw new Error('Not possible to pay you that');
-              }
-
-            });
-        });
-}
-
-function isSetingPayment(msg){
-  var msgMin = msg.toLowerCase();
-  var pesos = msgMin.search("depositar");
-  var dolares = msgMin.search("dolares");
-
-  if ((dolares >= 0) && (pesos >= 0)){
-    return true;
-  } else {
-    return false;
-  }
-}
 
 function connectWebSocketIntranet(url) {
 
@@ -153,42 +55,58 @@ function connectWebSocketIntranet(url) {
 
   ws.on('message', function(message) {
       message = JSON.parse(message);
+      var command = null;
+      var commandArgs = [];
+      var args, commandName;
 
       if (_.startsWith(message.channel, "D" ) && (message.type === "message") && (message.user != "U081MUY5P")){
-        var userID = message.user,
-            isAskingMail = (message.text === "puto"),
-            isAskingLevel = (message.text === "cuanto?"),
-            isAskingLevelPesos = (message.text === "cuantos pesos?"),
-            isAskingValorDolar = (message.text === "valorDolar"),
-            response;
 
-        if (isAskingMail){
-          response = responseToMail(userID,ws,message);
-        }
-        if (isAskingLevel){
-          response = responseToLevel(userID, ws, message);
-        }
+        var text = message.text;
+        var userID = message.user;
 
-        if (isAskingLevelPesos){
-          response = responseToLevelPesos(userID, ws, message);
+        args = /(\w*)\s*\:(.*)/.exec(text);
+        if (args) {
+          console.log("ARGS -> " + args);
+          commandName = args[1].trim();
+          commandArgs = fn.splitSlackParams(args[2]);
+          command = commands[commandName];
+        }
+        else if (text) {
+          // command (?)
+          command = commands[text.trim().replace(/(\?|\s)/,'')];
         }
 
-        if (isSetingPayment(message.text)){
-          response = responseToPayment(userID,ws,message);
-        }
-
-        if (isAskingValorDolar){
-          response = responseToValorDolar(userID, ws, message);
-        }
-
-        if (!response){
-            errorSlackMsg = "Mensaje no valido";
-            errorResponse("Mensaje no valido", ws, message.channel);
-        }else{
-          response.catch(function(error){
-              errorResponse(error, ws, message.channel);
+        command.execute(commandArgs, userID, function (response, more) {
+            var end = function () {
+              if (!more) activeCommands--;
+              if (resetWhenIdle && activeCommands === 0) {
+                ws.close();
+              }
+            };
+            var text = "@bot: " + (response.text || "");
+            if (response.text) {
+              sendMessage(ws, message, text);
+              end();
+            }
+            else {
+              end();
+            }
           });
-        }
       }
-  });
+    });
+  }
+
+var _nextId = 1;
+function nextId() {
+  	return _nextId++;
+}
+
+function sendMessage(ws, message, text) {
+       ws.send(JSON.stringify({
+           channel: message.channel,
+           id: nextId(),
+           text: text,
+           type: "message",
+           reply_to : message.id
+       }));
 }
