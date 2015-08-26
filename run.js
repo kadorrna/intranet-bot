@@ -1,21 +1,16 @@
 'use strict';
 
-
 var dotenv = require('dotenv');
 dotenv.config({
   silent: true
 });
 dotenv.load();
 
-
-
 var WebSocket = require('ws'),
     robotUrl = "https://slack.com/api/rtm.start?token=" + process.env.BOT_TOKEN,
     request = require("request"),
-    rp = require('request-promise'),
     slack = require('./slackHelper'),
     intra = require('./intranetHelper'),
-    errorSlackMsg = 'Hubo un error',
     commands = require("./commands.js"),
     fn = require("./functions.js"),
     _ = require('lodash');

@@ -50,7 +50,3 @@ exports.payment = function(mail,pesos,dolares){
     }
   });
 };
-
-
-
-// SAVE USER PAYMENT

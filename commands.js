@@ -121,11 +121,6 @@ commands = {
                 });
       }
     },
-
-
-
-
-    //then(reply(true, "Chau che!"));
     help: {
         help: {
             description: "muestra esta ayuda",

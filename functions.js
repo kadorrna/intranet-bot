@@ -1,12 +1,4 @@
 'use strict';
-/*
-var cv = require('opencv')
-var fs = require('fs');
-var http = require('http');
-var https = require('https');
-imageClient = require('google-images');
-var nodeImages = require("images")
-*/
 
 var htmlEntities = {
     '&amp;': '&',
